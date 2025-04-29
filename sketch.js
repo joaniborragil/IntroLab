@@ -1,3 +1,69 @@
+let particles = [];
+let G = 0.1;
+let wind = 0;
+let colorlist = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
+let gravitySlider;
+let windEnabled = false;
+
+function setup() {
+  createCanvas(600, 400);
+  gravitySlider = createSlider(0, 1, 0.1, 0.01);
+  gravitySlider.position(10, 10);
+  gravitySlider.style('width', '100px');
+
+  for (let i = 0; i < 12; i++) {
+    particles.push(new Particle(
+      random(width),
+      random(height),
+      random(-1, 1),
+      random(-1, 1),
+      random(8, 15),
+      random(colorlist)
+    ));
+  }
+
+  ellipseMode(RADIUS);
+}
+
+function draw() {
+  background(0, 20); // Trails effect with slight transparency
+  G = gravitySlider.value();
+
+  for (let p of particles) {
+    let gravity = createVector(0, G);
+    let windForce = createVector(windEnabled ? wind : 0, 0);
+    p.applyForce(gravity);
+    p.applyForce(windForce);
+    p.update();
+  }
+
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      particles[i].checkCollision(particles[j]);
+    }
+  }
+
+  fill(255);
+  textSize(12);
+  text("Gravity: " + nf(G, 1, 2), 120, 20);
+  text("Press W to toggle wind | Click to attract particles", 10, height - 10);
+}
+
+function keyPressed() {
+  if (key === 'W' || key === 'w') {
+    windEnabled = !windEnabled;
+    wind = random(-0.3, 0.3);
+  }
+}
+
+function mousePressed() {
+  for (let p of particles) {
+    let pull = createVector(mouseX - p.position.x, mouseY - p.position.y);
+    pull.setMag(0.3);
+    p.applyForce(pull);
+  }
+}
+
 class Particle {
   constructor(x, y, dx, dy, r, c) {
     this.position = createVector(x, y);
@@ -11,15 +77,7 @@ class Particle {
     this.acceleration.add(force);
   }
 
-  applyFriction() {
-    if (this.position.y >= height - this.r) {
-      let friction = this.velocity.copy().normalize().mult(-0.1);
-      this.applyForce(friction);
-    }
-  }
-
   update() {
-    this.applyFriction();
     this.velocity.add(this.acceleration);
     this.position.add(this.velocity);
     this.acceleration.mult(0);
@@ -29,6 +87,7 @@ class Particle {
 
   display() {
     fill(this.c);
+    noStroke();
     circle(this.position.x, this.position.y, this.r);
   }
 
@@ -58,75 +117,21 @@ class Particle {
     let minDist = this.r + other.r;
 
     if (distance < minDist) {
-      let angle = atan2(dy, dx);
-      let targetX = this.position.x + cos(angle) * minDist;
-      let targetY = this.position.y + sin(angle) * minDist;
-      let ax = (targetX - other.position.x) * 0.05;
-      let ay = (targetY - other.position.y) * 0.05;
+      // Change color on collision
+      this.c = random(colorlist);
+      other.c = random(colorlist);
 
-      this.velocity.x -= ax;
-      this.velocity.y -= ay;
-      other.velocity.x += ax;
-      other.velocity.y += ay;
+      // Elastic collision
+      let normal = createVector(dx, dy).normalize();
+      let relativeVelocity = p5.Vector.sub(this.velocity, other.velocity);
+      let speed = relativeVelocity.dot(normal);
+
+      if (speed < 0) return;
+
+      let impulse = normal.mult(speed);
+      this.velocity.sub(impulse);
+      other.velocity.add(impulse);
     }
   }
 }
 
-let particles = [];
-let G = 0.1;
-let wind = 0;
-let colorlist = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0'];
-
-function setup() {
-  createCanvas(400, 400);
-  for (let i = 0; i < 10; i++) {
-    particles.push(new Particle(
-      random(width),
-      random(height),
-      random(-1, 1),
-      random(-1, 1),
-      10,
-      random(colorlist)
-    ));
-  }
-  ellipseMode(RADIUS);
-}
-
-function draw() {
-  background(220);
-  for (let p of particles) {
-    p.applyForce(createVector(0, G));
-    p.applyForce(createVector(wind, 0));
-    p.update();
-  }
-
-  for (let i = 0; i < particles.length; i++) {
-    for (let j = i + 1; j < particles.length; j++) {
-      particles[i].checkCollision(particles[j]);
-    }
-  }
-}
-
-function keyPressed() {
-  if (key === ' ') {
-    wind = random(-0.5, 0.5);
-  } else if (keyCode === LEFT_ARROW) {
-    wind = -0.3;
-  } else if (keyCode === RIGHT_ARROW) {
-    wind = 0.3;
-  }
-}
-
-function keyReleased() {
-  if (keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW) {
-    wind = 0;
-  }
-}
-
-function mousePressed() {
-  for (let p of particles) {
-    let pull = createVector(mouseX - p.position.x, mouseY - p.position.y);
-    pull.setMag(0.2);
-    p.applyForce(pull);
-  }
-}
