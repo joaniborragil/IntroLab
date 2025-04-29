@@ -39,9 +39,29 @@ function draw() {
   }
 }
 
+// Wind controls
 function keyPressed() {
   if (key === ' ') {
-    wind = random(-0.5, 0.5); // Gust of wind
+    wind = random(-0.5, 0.5); // Random gust of wind
+  } else if (keyCode === LEFT_ARROW) {
+    wind = -0.3;
+  } else if (keyCode === RIGHT_ARROW) {
+    wind = 0.3;
+  }
+}
+
+function keyReleased() {
+  if (keyCode === LEFT_ARROW || keyCode === RIGHT_ARROW) {
+    wind = 0;
+  }
+}
+
+// Mouse click applies attractive force
+function mousePressed() {
+  for (let mover of movers) {
+    let dir = createVector(mouseX - mover.position.x, mouseY - mover.position.y);
+    dir.setMag(0.2); // Strength of pull
+    mover.applyForce(dir);
   }
 }
 
@@ -58,7 +78,20 @@ class Mover {
     this.acceleration.add(force);
   }
 
+  applyFriction() {
+    if (this.position.y >= height - this.r) {
+      let friction = this.velocity.copy();
+      friction.normalize();
+      friction.mult(-1);
+      let normal = 1;
+      let mu = 0.1;
+      friction.setMag(mu * normal);
+      this.applyForce(friction);
+    }
+  }
+
   update() {
+    this.applyFriction();
     this.velocity.add(this.acceleration);
     this.position.add(this.velocity);
     this.acceleration.mult(0); // Reset acceleration
